@@ -152,18 +152,18 @@ fn main() {
         for (index, line) in reader.lines().enumerate() {
             let line = line.unwrap();
 
+            let mut found_idx;
             let mut entry: [&str; 2] = ["", ""];
-            let iter = str::split_whitespace(&line);
-            let mut idx = 0;
-            for e in iter {
-                entry[idx] = e;
-                idx = idx + 1;
-                if idx >= 2 {
-                    break;
-                }
+            match line.rfind(' ') {
+                Some(found) => found_idx = found,
+                None => found_idx = 0
             }
-
-            let found_idx;
+            if found_idx != 0 {
+                entry[0] = &line[..found_idx];
+                entry[1] = &line[found_idx+1..];
+            } else {
+                entry[1] = &line;
+            }
             match revlist_map.get(entry[1]) {
                 Some(found) => found_idx = *found,
                 None => found_idx = 0
@@ -182,7 +182,11 @@ fn main() {
                 green = rgb.unwrap().g;
                 blue = rgb.unwrap().b;
             }
-            println!("│\x1b[30m\x1b[48;2;{};{};{}m{}:{}\x1b[0m│ {}", red, green, blue, entry[0], entry[1], bat_lines[index]);
+            if entry[0] != "" {
+                println!("│\x1b[30m\x1b[48;2;{};{};{}m{}:{}\x1b[0m│ {}", red, green, blue, entry[0], entry[1], bat_lines[index]);
+            } else {
+                println!("│\x1b[30m\x1b[48;2;{};{};{}m{}\x1b[0m│ {}", red, green, blue, entry[1], bat_lines[index]);
+            }
         }
     } else {
         return;
