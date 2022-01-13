@@ -63,15 +63,15 @@ fn generate_gradation(start: &RGB, end: &RGB, steps: u32) -> Vec<RGB> {
 
 fn main() {
     // Table for true-color gradation
-    // (start.r, start.g, start.b, end.r, end.g, end.b)
+    // (b-start.r, b-start.g, b-start.b, b-end.r, b-end.g, b-end.b, fore.r, fore.g, fore.b)
     let gradation_table =
-        [(0x70, 0xc0, 0xb1, 0xc5, 0xc8, 0xc6),
-         (0xc3, 0x97, 0xd8, 0xc5, 0xc8, 0xc6),
-         (0x7a, 0xa6, 0xda, 0xc5, 0xc8, 0xc6),
-         (0xe7, 0xc5, 0x47, 0xc5, 0xc8, 0xc6),
-         (0xb9, 0xca, 0x4a, 0xc5, 0xc8, 0xc6),
-         (0xd5, 0x4e, 0x53, 0xc5, 0xc8, 0xc6),
-         (0x8a, 0xbe, 0x87, 0xc5, 0xc8, 0xc6)];
+        [(0x70, 0xc0, 0xb1, 0xc5, 0xc8, 0xc6, 0x3c, 0x3e, 0x3f),
+         (0xc3, 0x97, 0xd8, 0xc5, 0xc8, 0xc6 ,0x3c, 0x3e, 0x3f),
+         (0x7a, 0xa6, 0xda, 0xc5, 0xc8, 0xc6, 0x3c, 0x3e, 0x3f),
+         (0xe7, 0xc5, 0x47, 0xc5, 0xc8, 0xc6, 0x3c, 0x3e, 0x3f),
+         (0xb9, 0xca, 0x4a, 0xc5, 0xc8, 0xc6, 0x3c, 0x3e, 0x3f),
+         (0xd5, 0x4e, 0x53, 0xc5, 0xc8, 0xc6, 0x3c, 0x3e, 0x3f),
+         (0x8a, 0xbe, 0x87, 0xc5, 0xc8, 0xc6, 0x3c, 0x3e, 0x3f)];
 
     let mut gradation_idx = 0;
 
@@ -124,6 +124,11 @@ fn main() {
         return;
     }
 
+    let fore = RGB {
+        r: gradation_table[gradation_idx].6,
+        g: gradation_table[gradation_idx].7,
+        b: gradation_table[gradation_idx].8
+    };
     let start = RGB {
         r: gradation_table[gradation_idx].0,
         g: gradation_table[gradation_idx].1,
@@ -166,7 +171,7 @@ fn main() {
             }
             match revlist_map.get(entry[1]) {
                 Some(found) => found_idx = *found,
-                None => found_idx = 0
+                None => found_idx = revlist_map.len() - 1
             }
 
             let rgb = gradation.get(found_idx);
@@ -183,9 +188,9 @@ fn main() {
                 blue = rgb.unwrap().b;
             }
             if entry[0] != "" {
-                println!("│\x1b[30m\x1b[48;2;{};{};{}m{}:{}\x1b[0m│ {}", red, green, blue, entry[0], entry[1], bat_lines[index]);
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{}\x1b[0m│ {}", fore.r, fore.g, fore.b, red, green, blue, entry[0], entry[1], bat_lines[index]);
             } else {
-                println!("│\x1b[30m\x1b[48;2;{};{};{}m{}\x1b[0m│ {}", red, green, blue, entry[1], bat_lines[index]);
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}\x1b[0m│ {}", fore.r, fore.g, fore.b, red, green, blue, entry[1], bat_lines[index]);
             }
         }
     } else {
