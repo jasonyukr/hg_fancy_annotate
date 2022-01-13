@@ -188,9 +188,9 @@ fn main() {
                 blue = rgb.unwrap().b;
             }
             if entry[0] != "" {
-                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{}\x1b[0m│ {}", fore.r, fore.g, fore.b, red, green, blue, entry[0], entry[1], bat_lines[index]);
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{}\x1b[0m│{}", fore.r, fore.g, fore.b, red, green, blue, entry[0], entry[1], bat_lines[index]);
             } else {
-                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}\x1b[0m│ {}", fore.r, fore.g, fore.b, red, green, blue, entry[1], bat_lines[index]);
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}\x1b[0m│{}", fore.r, fore.g, fore.b, red, green, blue, entry[1], bat_lines[index]);
             }
         }
     } else {
