@@ -152,6 +152,8 @@ fn main() {
         return;
     }
 
+    let line_number_digits = ((bat_lines.len() as f64).log10() + 1.0) as usize;
+
     if blame_file.is_ok() {
         let reader = BufReader::new(blame_file.unwrap());
         for (index, line) in reader.lines().enumerate() {
@@ -184,10 +186,11 @@ fn main() {
                 back.g = rgb.unwrap().g;
                 back.b = rgb.unwrap().b;
             }
+            let line_number = format!("{:>width$}", index + 1, width = line_number_digits);
             if hash == "" {
-                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, line, bat_lines[index]);
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{} {}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, line, line_number, bat_lines[index]);
             } else {
-                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, change_number, hash, bat_lines[index]);
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{} {}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, change_number, hash, line_number, bat_lines[index]);
             }
         }
     } else {
