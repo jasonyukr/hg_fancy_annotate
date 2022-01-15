@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /*
 ANSI 256color to true-color
 ===========================
- NAME       FG/BG     RGB
+ NAME       FG/BG     Rgb
 ---------------------------
 white      37m/47m   c5c8c6
 red        31m/41m   cc6666
@@ -26,20 +26,20 @@ Br cyan    96m/106m  70c0b1
 ===========================
 */
 
-struct RGB {
+struct Rgb {
     r: u32,
     g: u32,
     b: u32
 }
 
-fn generate_gradation(start: &RGB, end: &RGB, steps: u32) -> Vec<RGB> {
+fn get_gradation(start: &Rgb, end: &Rgb, steps: u32) -> Vec<Rgb> {
     // The number of colors to compute
     let len = steps;
 
     // Alpha blending amount
     let mut alpha = 0.0;
 
-    let mut gradation: Vec<RGB> = Vec::new();
+    let mut gradation: Vec<Rgb> = Vec::new();
 
     for _i in 0..len {
         let red: f32;
@@ -51,7 +51,7 @@ fn generate_gradation(start: &RGB, end: &RGB, steps: u32) -> Vec<RGB> {
         green = end.g as f32 * alpha + (1.0 - alpha) * start.g as f32;
         blue = end.b as f32 * alpha + (1.0 - alpha) * start.b as f32;
 
-        let rgb = RGB {
+        let rgb = Rgb {
             r: red as u32,
             g: green as u32,
             b: blue as u32
@@ -84,7 +84,10 @@ fn main() {
     let mut idx_mode = false;
     for arg in env::args() {
         if idx_mode {
-            gradation_idx = arg.parse::<usize>().unwrap();
+            match arg.parse::<usize>() {
+                Ok(i) => gradation_idx = i,
+                Err(_) => gradation_idx = 0
+            }
             if gradation_idx >= gradation_table.len() {
                 gradation_idx = 0;
             }
@@ -115,89 +118,100 @@ fn main() {
 
     // load revlist file
     let mut revlist_map = HashMap::new();
-    if revlist_file.is_ok() {
-        let reader = BufReader::new(revlist_file.unwrap());
-        for (index, line) in reader.lines().enumerate() {
-            let line = line.unwrap();
-            revlist_map.insert(line, index as usize);
+    match revlist_file {
+        Err(_) => return,
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            for (index, line) in reader.lines().enumerate() {
+                let line = line.unwrap();
+                revlist_map.insert(line, index as usize);
+            }
         }
-    } else {
-        return;
     }
 
-    let fore = RGB {
+    let fore = Rgb {
         r: gradation_table[gradation_idx].6,
         g: gradation_table[gradation_idx].7,
         b: gradation_table[gradation_idx].8
     };
-    let back_start = RGB {
+    let back_start = Rgb {
         r: gradation_table[gradation_idx].0,
         g: gradation_table[gradation_idx].1,
         b: gradation_table[gradation_idx].2
     };
-    let back_end = RGB {
+    let back_end = Rgb {
         r: gradation_table[gradation_idx].3,
         g: gradation_table[gradation_idx].4,
         b: gradation_table[gradation_idx].5
     };
-    let gradation = generate_gradation(&back_start, &back_end, revlist_map.len() as u32);
+    let gradation = get_gradation(&back_start, &back_end, revlist_map.len() as u32);
 
     // load bat file
     let mut bat_lines = vec![];
-    if bat_file.is_ok() {
-        let reader = BufReader::new(bat_file.unwrap());
-        for (_index, line) in reader.lines().enumerate() {
-            let line = line.unwrap();
-            bat_lines.push(line);
+    match bat_file {
+        Err(_) => return,
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            for ln in reader.lines() {
+                let line;
+                match ln {
+                    Ok(data) => line = data,
+                    Err(_) => continue
+                }
+                bat_lines.push(line);
+            }
         }
-    } else {
-        return;
     }
 
     let line_number_digits = ((bat_lines.len() as f64).log10() + 1.0) as usize;
 
     // load blame file and process each line
-    if blame_file.is_ok() {
-        let reader = BufReader::new(blame_file.unwrap());
-        for (index, line) in reader.lines().enumerate() {
-            let line = line.unwrap();
+    match blame_file {
+        Err(_) => return,
+        Ok(file) => {
+            let reader = BufReader::new(file);
+            for (index, ln) in reader.lines().enumerate() {
+                let line;
+                match ln {
+                    Ok(data) => line = data,
+                    Err(_) => continue
+                }
 
-            // split change-number and hash-value
-            let change_number;
-            let hash;
-            match line.rfind(' ') {
-                Some(found) => {change_number = &line[..found]; hash = &line[found+1..]},
-                None => {change_number = ""; hash = ""}
-            }
+                // split change-number and hash-value
+                let change_number;
+                let hash;
+                match line.rfind(' ') {
+                    Some(found) => {change_number = &line[..found]; hash = &line[found+1..]},
+                    None => {change_number = ""; hash = ""}
+                }
 
-            // get matching index from hash value
-            let matching_idx;
-            match revlist_map.get(hash) {
-                Some(found) => matching_idx = *found,
-                None => matching_idx = revlist_map.len() - 1
-            }
+                // get matching index from hash value
+                let matching_idx;
+                match revlist_map.get(hash) {
+                    Some(found) => matching_idx = *found,
+                    None => matching_idx = revlist_map.len() - 1
+                }
 
-            // get current gradation color from matching index. default is back_end
-            let mut back = RGB {
-                r: back_end.r,
-                g: back_end.g,
-                b: back_end.b
-            };
-            let rgb = gradation.get(matching_idx);
-            if !rgb.is_none() {
-                back.r = rgb.unwrap().r;
-                back.g = rgb.unwrap().g;
-                back.b = rgb.unwrap().b;
-            }
+                // get current gradation color from matching index. default is back_end
+                let mut back = Rgb {
+                    r: back_end.r,
+                    g: back_end.g,
+                    b: back_end.b
+                };
+                let rgb = gradation.get(matching_idx);
+                if !rgb.is_none() {
+                    back.r = rgb.unwrap().r;
+                    back.g = rgb.unwrap().g;
+                    back.b = rgb.unwrap().b;
+                }
 
-            let line_number = format!("{:>width$}", index + 1, width = line_number_digits);
-            if hash == "" {
-                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{} {}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, line, line_number, bat_lines[index]);
-            } else {
-                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{} {}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, change_number, hash, line_number, bat_lines[index]);
+                let line_number = format!("{:>width$}", index + 1, width = line_number_digits);
+                if hash == "" {
+                    println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{} {}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, line, line_number, bat_lines[index]);
+                } else {
+                    println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{} {}\x1b[0m│{}", fore.r, fore.g, fore.b, back.r, back.g, back.b, change_number, hash, line_number, bat_lines[index]);
+                }
             }
         }
-    } else {
-        return;
     }
 }
