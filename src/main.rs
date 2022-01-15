@@ -123,8 +123,12 @@ fn main() {
         Err(_) => return,
         Ok(file) => {
             let reader = BufReader::new(file);
-            for (index, line) in reader.lines().enumerate() {
-                let line = line.unwrap();
+            for (index, ln) in reader.lines().enumerate() {
+                let line;
+                match ln {
+                    Ok(data) => line = data,
+                    Err(_) => continue
+                }
                 revlist_map.insert(line, index as usize);
             }
         }
