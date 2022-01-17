@@ -34,19 +34,14 @@ struct Rgb {
 }
 
 fn get_grad(start: &Rgb, end: &Rgb, steps: u32) -> Vec<Rgb> {
-    // The number of colors to compute
-    let len = steps;
-
-    // Alpha blending amount
     let mut alpha = 0.0;
-
     let mut grad: Vec<Rgb> = Vec::new();
 
-    for _i in 0..len {
+    for _i in 0..steps {
         let red: f32;
         let green: f32;
         let blue: f32;
-        alpha = alpha + (1.0 / len as f32);
+        alpha = alpha + (1.0 / steps as f32);
 
         red = end.r as f32 * alpha + (1.0 - alpha) * start.r as f32;
         green = end.g as f32 * alpha + (1.0 - alpha) * start.g as f32;
@@ -59,7 +54,8 @@ fn get_grad(start: &Rgb, end: &Rgb, steps: u32) -> Vec<Rgb> {
         };
         grad.push(rgb)
     }
-    return grad;
+
+    grad
 }
 
 fn main() {
@@ -85,12 +81,11 @@ fn main() {
     let mut idx_mode = false;
     for arg in env::args() {
         if idx_mode {
-            match arg.parse::<usize>() {
-                Ok(i) => grad_idx = i,
-                Err(_) => grad_idx = 0
-            }
-            if grad_idx >= grad_table.len() {
-                grad_idx = 0;
+            if let Ok(i) = arg.parse::<usize>() {
+                grad_idx = i;
+                if grad_idx >= grad_table.len() {
+                    grad_idx = 0;
+                }
             }
             idx_mode = false;
             continue;
@@ -109,29 +104,25 @@ fn main() {
             }
         }
     }
-
     if revlist_filename == "" || blame_filename == "" || bat_filename == "" {
         return;
     }
+
     let revlist_file = File::open(revlist_filename);
     let blame_file = File::open(blame_filename);
     let bat_file = File::open(bat_filename);
 
     // load revlist file
     let mut revlist_map = HashMap::new();
-    match revlist_file {
-        Err(_) => return,
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            for (index, ln) in reader.lines().enumerate() {
-                let line;
-                match ln {
-                    Ok(data) => line = data,
-                    Err(_) => continue
-                }
-                revlist_map.insert(line, index as usize);
+    if let Ok(file) = revlist_file {
+        let reader = BufReader::new(file);
+        for (index, line) in reader.lines().enumerate() {
+            if let Ok(ln) = line {
+                revlist_map.insert(ln, index as usize);
             }
         }
+    } else {
+        return;
     }
 
     let fore_color = Rgb {
@@ -153,63 +144,72 @@ fn main() {
 
     // load bat file
     let mut bat_lines = vec![];
-    match bat_file {
-        Err(_) => return,
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            for ln in reader.lines() {
-                let line;
-                match ln {
-                    Ok(data) => line = data,
-                    Err(_) => continue
-                }
+    if let Ok(file) = bat_file {
+        let reader = BufReader::new(file);
+        for ln in reader.lines() {
+            if let Ok(line) = ln {
                 bat_lines.push(line);
             }
         }
+    } else {
+        return;
     }
 
     let line_number_digits = ((bat_lines.len() as f64).log10() + 1.0) as usize;
 
     // load blame file and process each line
-    match blame_file {
-        Err(_) => return,
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            for (index, ln) in reader.lines().enumerate() {
-                let line;
-                match ln {
-                    Ok(data) => line = data,
-                    Err(_) => continue
-                }
+    if let Ok(file) = blame_file {
+        let reader = BufReader::new(file);
+        for (index, ln) in reader.lines().enumerate() {
+            let line;
+            match ln {
+                Ok(data) => line = data,
+                Err(_) => continue
+            }
 
-                // split change-number and hash-value
-                let change_number;
-                let hash;
-                match line.rfind(' ') {
-                    Some(found) => {change_number = &line[..found]; hash = &line[found+1..]},
-                    None => {change_number = ""; hash = ""}
-                }
+            // check bat line first
+            if index >= bat_lines.len() {
+                return;
+            }
 
-                // get matching index from hash value
-                let matching_idx;
-                match revlist_map.get(hash) {
-                    Some(found) => matching_idx = *found,
-                    None => matching_idx = revlist_map.len() - 1
-                }
+            // split change-number and hash-value
+            let change_number;
+            let hash;
+            if let Some(i) = line.rfind(' ') {
+                change_number = &line[..i];
+                hash = &line[i+1..];
+            } else {
+                change_number = "";
+                hash = &line;
+            }
 
-                // get current gradation color from matching index. default is back_end_color
-                let back_color;
-                match grad.get(matching_idx) {
-                    Some(color) => back_color = color,
-                    None => back_color = &back_end_color
-                }
+            // get matching index from hash value
+            let matching_idx;
+            if let Some(v) = revlist_map.get(hash) {
+                matching_idx = *v;
+            } else {
+                matching_idx = revlist_map.len() - 1
+            }
 
-                let line_number = format!("{:>width$}", index + 1, width = line_number_digits);
-                if hash == "" {
-                    println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{} {}\x1b[0m│{}", fore_color.r, fore_color.g, fore_color.b, back_color.r, back_color.g, back_color.b, line, line_number, bat_lines[index]);
-                } else {
-                    println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{} {}\x1b[0m│{}", fore_color.r, fore_color.g, fore_color.b, back_color.r, back_color.g, back_color.b, change_number, hash, line_number, bat_lines[index]);
-                }
+            // get current gradation color from matching index
+            let mut back_color = &back_end_color;
+            if let Some(c) = grad.get(matching_idx) {
+                back_color = c;
+            }
+
+            let line_number = format!("{:>width$}", index + 1, width = line_number_digits);
+            if change_number == "" {
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{} {}\x1b[0m│{}",
+                         fore_color.r, fore_color.g, fore_color.b,
+                         back_color.r, back_color.g, back_color.b,
+                         hash,
+                         line_number, bat_lines[index]);
+            } else {
+                println!("│\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m{}:{} {}\x1b[0m│{}",
+                         fore_color.r, fore_color.g, fore_color.b,
+                         back_color.r, back_color.g, back_color.b,
+                         change_number, hash,
+                         line_number, bat_lines[index]);
             }
         }
     }
